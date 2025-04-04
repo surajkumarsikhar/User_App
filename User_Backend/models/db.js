@@ -9,7 +9,7 @@ let db;
 async function connectDB() {
     if (!db) {
         await client.connect();
-        db = client.db('user_management');
+        db = client.db('my_db');
     }
     console.log("DB Connected.")
     return db;

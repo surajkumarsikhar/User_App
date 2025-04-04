@@ -4,23 +4,23 @@ const userModel = {
     // Get all users
     getAllUsers: async () => {
         const db = await connectDB();
-        return await db.collection('users').find().toArray();
+        return await db.collection('User').find().toArray();
     },
 
     // Find user for login
     findUser: async (firstName, lastName, email) => {
         const db = await connectDB();
-        return await db.collection('users').findOne({ firstName, lastName, email });
+        return await db.collection('User').findOne({ firstname:firstName, lastname:lastName, email:email });
     },
 
     // Add user
     addUser: async (firstName, lastName, email, mobile) => {
         const db = await connectDB();
-        const usersCollection = db.collection('users');
+        const usersCollection = db.collection('User');
         const historyCollection = db.collection('history');
 
         const users = await usersCollection.find().toArray();
-        const newUser = { id: users.length + 1, firstName, lastName, email, mobile };
+        const newUser = { _id: users.length + 1, firstname:firstName, lastname:lastName, email:email, mobile:mobile };
         await usersCollection.insertOne(newUser);
 
         // Log to history
@@ -36,7 +36,7 @@ const userModel = {
     // Update user
     updateUser: async (id, email, mobile) => {
         const db = await connectDB();
-        const usersCollection = db.collection('users');
+        const usersCollection = db.collection('User');
         const historyCollection = db.collection('history');
 
         const user = await usersCollection.findOne({ id: parseInt(id) });
@@ -49,7 +49,7 @@ const userModel = {
         if (Object.keys(updates).length === 0) return user;
 
         const updatedUser = await usersCollection.findOneAndUpdate(
-            { id: parseInt(id) },
+            { _id: parseInt(id) },
             { $set: updates },
             { returnDocument: 'after' }
         );
@@ -70,13 +70,13 @@ const userModel = {
             });
         }
 
-        return updatedUser;
+        return updatedUser.value;
     },
 
     // Delete user
     deleteUser: async (id) => {
         const db = await connectDB();
-        const usersCollection = db.collection('users');
+        const usersCollection = db.collection('User');
         const historyCollection = db.collection('history');
 
         const user = await usersCollection.findOne({ id: parseInt(id) });
@@ -97,10 +97,11 @@ const userModel = {
     // Search users
     searchUser: async (query) => {
         const db = await connectDB();
-        return await db.collection('users').find({
+        return await db.collection('User').find({
             $or: [{ email: query }, { mobile: query }]
         }).toArray();
     }
 };
+
 
 module.exports = userModel;
