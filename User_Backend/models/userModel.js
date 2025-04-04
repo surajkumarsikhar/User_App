@@ -1,46 +1,106 @@
-const users = [
-    { id: 1, firstName: 'Chitta', lastName: 'Mohapatra', email: 'chitta@example.com', mobile: '1234567890' },
-    { id: 2, firstName: 'John', lastName: 'Doe', email: 'john@example.com', mobile: '0987654321' }
-];
+const connectDB = require('./db');
 
-// Functional Model object
 const userModel = {
-    getAllUsers: () => users,
-
-    findUser: (firstName, lastName, email) => {
-        return users.find(u => u.firstName === firstName && u.lastName === lastName && u.email === email);
+    // Get all users
+    getAllUsers: async () => {
+        const db = await connectDB();
+        return await db.collection('users').find().toArray();
     },
 
-    addUser: (firstName, lastName, email, mobile) => {
+    // Find user for login
+    findUser: async (firstName, lastName, email) => {
+        const db = await connectDB();
+        return await db.collection('users').findOne({ firstName, lastName, email });
+    },
+
+    // Add user
+    addUser: async (firstName, lastName, email, mobile) => {
+        const db = await connectDB();
+        const usersCollection = db.collection('users');
+        const historyCollection = db.collection('history');
+
+        const users = await usersCollection.find().toArray();
         const newUser = { id: users.length + 1, firstName, lastName, email, mobile };
-        users.push(newUser);
+        await usersCollection.insertOne(newUser);
+
+        // Log to history
+        await historyCollection.insertOne({
+            action: 'create',
+            user: newUser,
+            timestamp: new Date().toISOString()
+        });
+
         return newUser;
     },
 
-    updateUser: (id, email, mobile) => {
-        const userIndex = users.findIndex(u => u.id === parseInt(id));
-        if (userIndex !== -1) {
-            users[userIndex] = {
-                ...users[userIndex],
-                email: email || users[userIndex].email,
-                mobile: mobile || users[userIndex].mobile
-            };
-            return users[userIndex];
+    // Update user
+    updateUser: async (id, email, mobile) => {
+        const db = await connectDB();
+        const usersCollection = db.collection('users');
+        const historyCollection = db.collection('history');
+
+        const user = await usersCollection.findOne({ id: parseInt(id) });
+        if (!user) return null;
+
+        const updates = {};
+        if (email && email !== user.email) updates.email = email;
+        if (mobile && mobile !== user.mobile) updates.mobile = mobile;
+
+        if (Object.keys(updates).length === 0) return user;
+
+        const updatedUser = await usersCollection.findOneAndUpdate(
+            { id: parseInt(id) },
+            { $set: updates },
+            { returnDocument: 'after' }
+        );
+
+        // Log to history
+        if (updates.email) {
+            await historyCollection.insertOne({
+                action: 'emailupdate',
+                user: updatedUser,
+                timestamp: new Date().toISOString()
+            });
         }
-        return null;
+        if (updates.mobile) {
+            await historyCollection.insertOne({
+                action: 'phoneupdate',
+                user: updatedUser,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        return updatedUser;
     },
 
-    deleteUser: (id) => {
-        const userIndex = users.findIndex(u => u.id === parseInt(id));
-        if (userIndex !== -1) {
-            return users.splice(userIndex, 1)[0];
-        }
-        return null;
+    // Delete user
+    deleteUser: async (id) => {
+        const db = await connectDB();
+        const usersCollection = db.collection('users');
+        const historyCollection = db.collection('history');
+
+        const user = await usersCollection.findOne({ id: parseInt(id) });
+        if (!user) return null;
+
+        await usersCollection.deleteOne({ id: parseInt(id) });
+
+        // Log to history
+        await historyCollection.insertOne({
+            action: 'delete',
+            user,
+            timestamp: new Date().toISOString()
+        });
+
+        return user;
     },
-searchUser: (query) => {
-        return users.filter(u => u.email === query || u.mobile === query);
+
+    // Search users
+    searchUser: async (query) => {
+        const db = await connectDB();
+        return await db.collection('users').find({
+            $or: [{ email: query }, { mobile: query }]
+        }).toArray();
     }
-
 };
 
 module.exports = userModel;

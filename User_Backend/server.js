@@ -14,6 +14,7 @@ app.post('/api/users', UserController.addUser);
 app.get('/api/users', UserController.getAllUsers);
 app.put('/api/users/:id', UserController.updateUser);
 app.delete('/api/users/:id', UserController.deleteUser);
+app.get('/api/users/search', UserController.searchUser);
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
